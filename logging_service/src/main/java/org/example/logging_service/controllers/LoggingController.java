@@ -23,6 +23,9 @@ public class LoggingController {
         return ResponseEntity.ok(loggingService.getAllMessages());
     }
 
+
+
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getMessage(@PathVariable String id) {
         Message message = loggingService.getMessage(id);

@@ -9,6 +9,8 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -23,12 +25,15 @@ public class FacadeService {
         this.restClient = restClient;
     }
 
-    @Retryable(value = { RestClientException.class }, maxAttempts = 3, backoff = @Backoff(delay = 2000))
+    @Retryable(value = {RestClientException.class, ResourceAccessException.class, HttpServerErrorException.class},
+            maxAttempts = 3, backoff = @Backoff(delay = 10000))
     public Message handleNewMessage(String message){
         Message messageNew = new Message(UUID.randomUUID().toString(), message);
+        //Message messageNew = new Message("1", message);
 
-        ResponseEntity<String> response = restClient.post()
-                .uri("http://localhost:8890/api/logging")
+
+        restClient.post()
+                .uri("/api/logging")
                 .header("Idempotency-Key", messageNew.id())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(messageNew)
@@ -38,19 +43,21 @@ public class FacadeService {
         return messageNew;
     }
 
-    @Retryable(value = { RestClientException.class }, maxAttempts = 3, backoff = @Backoff(delay = 2000))
+    @Retryable(value = {RestClientException.class, ResourceAccessException.class, HttpServerErrorException.class},
+            maxAttempts = 3, backoff = @Backoff(delay = 2000))
     public List<String> getAllMessages(){
         return restClient.get()
-                .uri("http://localhost:8890/api/logging")
+                .uri("/api/logging")
                 .retrieve()
                 .body(new ParameterizedTypeReference<List<String>>() {});
 
     }
 
-    @Retryable(value = { RestClientException.class }, maxAttempts = 3, backoff = @Backoff(delay = 2000))
+    @Retryable(value = {RestClientException.class, ResourceAccessException.class, HttpServerErrorException.class},
+            maxAttempts = 3, backoff = @Backoff(delay = 2000))
     public String requestToMessagingService(){
         return restClient.get()
-                .uri("http://localhost:8890/api/messaging")
+                .uri("/api/messaging")
                 .retrieve()
                 .body(String.class);
     }
