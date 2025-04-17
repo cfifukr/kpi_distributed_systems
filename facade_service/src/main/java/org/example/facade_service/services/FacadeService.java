@@ -2,17 +2,12 @@ package org.example.facade_service.services;
 
 import org.example.facade_service.data.Message;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.core.log.LogMessage;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,9 +15,12 @@ import java.util.UUID;
 @Service
 public class FacadeService {
     private final RestClient restClient;
+    private final MyKafkaProducer kafkaProducer;
 
-    public FacadeService(RestClient restClient) {
+    public FacadeService(RestClient restClient,
+                         MyKafkaProducer kafkaProducer) {
         this.restClient = restClient;
+        this.kafkaProducer = kafkaProducer;
     }
 
     @Retryable(value = {RestClientException.class, ResourceAccessException.class, HttpServerErrorException.class},
@@ -31,6 +29,7 @@ public class FacadeService {
         Message messageNew = new Message(UUID.randomUUID().toString(), message);
         //Message messageNew = new Message("1", message);
 
+        kafkaProducer.sendMessage(messageNew);
 
         restClient.post()
                 .uri("/api/logging")
@@ -39,6 +38,8 @@ public class FacadeService {
                 .body(messageNew)
                 .retrieve()
                 .toEntity(String.class);
+
+        
 
         return messageNew;
     }
@@ -57,7 +58,7 @@ public class FacadeService {
             maxAttempts = 3, backoff = @Backoff(delay = 2000))
     public String requestToMessagingService(){
         return restClient.get()
-                .uri("/api/messaging")
+                .uri("/api/messaging/")
                 .retrieve()
                 .body(String.class);
     }

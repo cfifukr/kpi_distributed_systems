@@ -3,7 +3,6 @@ package org.example.logging_service.config;
 
 import com.hazelcast.config.Config;
 import com.hazelcast.config.JoinConfig;
-import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
@@ -20,6 +19,7 @@ public class HazelcastConfig {
 
         NetworkConfig networkConfig = config.getNetworkConfig();
         JoinConfig joinConfig = networkConfig.getJoin();
+
 
         joinConfig.getMulticastConfig().setEnabled(false);
         joinConfig.getTcpIpConfig()
