@@ -1,44 +1,51 @@
 package org.example.logging_service.config;
 
 
-import com.hazelcast.config.Config;
-import com.hazelcast.config.JoinConfig;
-import com.hazelcast.config.NetworkConfig;
+import com.hazelcast.config.*;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.map.IMap;
+
+import com.netflix.discovery.shared.transport.jersey.TransportClientFactories;
+import com.netflix.discovery.shared.transport.jersey3.Jersey3TransportClientFactories;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
-@Configuration(proxyBeanMethods = false)
+import java.util.List;
+
+@Configuration
 public class HazelcastConfig {
+    @Autowired
+    private HazelcastNodeDiscovery hazelcastNodeDiscovery;
+
     @Bean
-    public HazelcastInstance hazelcastInstance() {
+    public TransportClientFactories<?> transportClientFactories() {
+        return new Jersey3TransportClientFactories();
+    }
+
+    @Primary
+    @Bean
+    public HazelcastInstance hazelcastInstance(HazelcastEurekaLifecycleListener listener) {
         Config config = new Config();
         config.setClusterName("spring-hazelcast-cluster");
 
-        NetworkConfig networkConfig = config.getNetworkConfig();
-        JoinConfig joinConfig = networkConfig.getJoin();
+        config.addListenerConfig(new ListenerConfig(listener));
 
+        NetworkConfig network = config.getNetworkConfig();
+        JoinConfig join = network.getJoin();
 
-        joinConfig.getMulticastConfig().setEnabled(false);
-        joinConfig.getTcpIpConfig()
-                .setEnabled(true)
-                .addMember("127.0.0.1:5701")
-                .addMember("127.0.0.1:5702")
-                .addMember("127.0.0.1:5703");
+        join.getMulticastConfig().setEnabled(false);
 
-        HazelcastInstance instance = Hazelcast.newHazelcastInstance(config);
+        List<String> members = hazelcastNodeDiscovery.getHazelcastAddresses();
+        members.forEach(join.getTcpIpConfig()::addMember);
 
-        System.out.println("Hazelcast Cluster Members: " + instance.getCluster().getMembers());
-
-        return instance;
+        return Hazelcast.newHazelcastInstance(config);
     }
-
 
     @Bean
     public IMap<String, String> messagesMap(HazelcastInstance instance) {
         return instance.getMap("messagesMap");
     }
-
 }
